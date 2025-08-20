@@ -83,7 +83,7 @@ async function login() {
     if (!username || !password) { alert("Enter username and password."); return; }
 
     try {
-        const res = await fetch('http://localhost:3000/getForm', {
+        const res = await fetch('https://scioly-backend.onrender.com/getForm', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -155,7 +155,7 @@ function submitExam() {
     }
 
     // Send data to backend
-    fetch('http://localhost:3000/submit', {
+    fetch('https://scioly-backend.onrender.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
