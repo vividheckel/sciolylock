@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exam Admin Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+  }
+
+  .container {
+    max-width: 1200px;
+  }
+
+  h1, h3 {
+    color: #fff;
+  }
+
+  .section {
+    margin-bottom: 40px;
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+  }
+
+  input, select, button {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+    border: 1px solid #555;
+  }
+
+  input:disabled, select:disabled {
+    background-color: #3a3a3a;
+  }
+
+  #answersContainer, #finalScore, #pendingTestContainer, #rankingContainer {
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+    padding: 15px;
+    border-radius: 8px;
+    overflow-x: auto;
+  }
+
+  table {
+    color: #e0e0e0;
+  }
+
+  table th, table td {
+    vertical-align: middle;
+  }
+
+  #lockScreen {
+    position: fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background-color: #121212;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index: 9999;
+    flex-direction: column;
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <h2>Admin Login</h2>
+  <input type="password" id="adminPassword" class="form-control mb-3" placeholder="Enter admin password">
+  <button class="btn btn-primary" onclick="unlockAdmin()">Unlock</button>
+  <div id="lockMsg" class="mt-2 text-danger"></div>
+</div>
+
+<div id="dashboard" class="container" style="display:none;">
+  <h1 class="mb-4">Admin Dashboard</h1>
+
+  <!-- CREATE USER -->
+    <div class="section">
+        <h3>Create User</h3>
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <input type="text" id="newUserTest" class="form-control" placeholder="Test Name">
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-primary w-100" onclick="createUser()">Create User</button>
+            </div>
+            <div class="col-md-4"></div> <!-- Empty column to align with other rows -->
+        </div>
+        <div id="userMessage" class="mt-2"></div>
+    </div>
+
+  <!-- CREATE QUESTION -->
+  <div class="section">
+    <h3>Create Question</h3>
+    <div class="row g-3">
+      <div class="col-md-3"><input type="text" id="questionTest" class="form-control" placeholder="Test Name"></div>
+      <div class="col-md-3"><input type="text" id="questionText" class="form-control" placeholder="Question Text"></div>
+      <div class="col-md-3"><input type="text" id="questionAnswer" class="form-control" placeholder="Correct Answer (blank = manual)"></div>
+      <div class="col-md-3"><input type="text" id="questionMedia" class="form-control" placeholder="Multimedia URL"></div>
+      <div class="col-md-3 mt-2">
+        <select id="questionType" class="form-select" onchange="toggleOptions()">
+          <option value="mcq">MCQ</option>
+          <option value="text">Text</option>
+        </select>
+      </div>
+      <div class="col-md-6 mt-2">
+        <input type="text" id="questionOptions" class="form-control" placeholder="Options (comma-separated)">
+      </div>
+      <div class="col-md-3 mt-2">
+        <button type="button" class="btn btn-success" onclick="createQuestion()">Create Question</button>
+      </div>
+    </div>
+    <div id="questionMessage" class="mt-2"></div>
+  </div>
+
+  <!-- VIEW USER ANSWERS -->
+  <div class="section">
+    <h3>View User Answers</h3>
+    <div class="row g-3 mb-2">
+      <div class="col-md-4"><input type="text" id="viewUsername" class="form-control" placeholder="Username"></div>
+      <div class="col-md-4"><input type="text" id="viewTestName" class="form-control" placeholder="Test Name"></div>
+      <div class="col-md-4"><button class="btn btn-info" onclick="viewUserAnswers()">View Answers</button></div>
+    </div>
+    <div id="answersContainer"></div>
+    <div id="finalScore" class="mt-2"></div>
+  </div>
+
+  <!-- MANUAL GRADING -->
+  <div class="section">
+    <h3>Pending Manual Grading</h3>
+    <div class="row g-3 mb-2">
+      <div class="col-md-6"><input type="text" id="pendingTestName" class="form-control" placeholder="Test Name"></div>
+      <div class="col-md-6"><button class="btn btn-secondary" onclick="viewPendingManual()">View Pending Questions</button></div>
+    </div>
+    <div id="pendingTestContainer" class="mt-2"></div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div class="section">
+    <h3>Test Rankings</h3>
+    <div class="row g-3 mb-2">
+      <div class="col-md-6"><input type="text" id="rankingTestName" class="form-control" placeholder="Test Name"></div>
+      <div class="col-md-6"><button class="btn btn-info" onclick="viewRankings()">View Rankings</button></div>
+    </div>
+    <div id="rankingContainer" class="mt-2"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const API_BASE = 'http://localhost:3000';
+let adminToken = null;
+
+// --- LOGIN ---
+async function unlockAdmin() {
+    const pwd = document.getElementById('adminPassword').value;
+    try {
+        const res = await fetch(`${API_BASE}/adminLogin`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ password: pwd })
+        });
+        const data = await res.json();
+        if (data.success && data.token) {
+            adminToken = data.token; // store JWT token
+            document.getElementById('lockScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+        } else {
+            document.getElementById('lockMsg').innerText = "Incorrect password";
+        }
+    } catch(err) {
+        document.getElementById('lockMsg').innerText = "Network error";
+    }
+}
+
+// --- HELPER FOR AUTH HEADERS ---
+function authHeaders() {
+    return {
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${adminToken}`
+    };
+}
+
+// --- CREATE USER ---
+async function createUser() {
+    const test = document.getElementById('newUserTest').value.trim();
+    const msg = document.getElementById('userMessage');
+    if(!test){ msg.innerText = "Test name is required"; return; }
+
+    // Prompt for team and competitors
+    const teamName = prompt("Enter Team Name:");
+    if(!teamName){ msg.innerText = "Team name is required"; return; }
+
+    let competitors = [];
+    for(let i=1; i<=3; i++){
+        const name = prompt(`Enter competitor ${i} name (leave blank if none):`);
+        if(name) competitors.push(name);
+        if(competitors.length === 3) break;
+    }
+
+    // Randomly generate username and password
+    const teamPart = teamName.replace(/\s+/g, '').substring(0, 3).toLowerCase(); // first 3 letters of team
+    const compPart = competitors.map(c => c[0].toLowerCase()).join(''); // initials of competitors
+    const suffix = Math.floor(Math.random() * 100); // short numeric suffix to avoid collisions
+    const username = `${teamPart}${compPart}${suffix}`; 
+
+    const password = Math.random().toString(36).slice(-8); // 8-char password
+
+    try{
+        // Call your server API to create user
+        const res = await fetch(`${API_BASE}/createUser`,{
+            method:'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ username, password, test })
+        });
+        const data = await res.json();
+        if(!data.success){ msg.innerText = `Error: ${data.error}`; return; }
+
+        // Generate PDF
+        generateUserPDF({teamName, competitors, test, username, password});
+        msg.innerText = `User created! Username and password saved in PDF.`;
+    } catch(err){
+        msg.innerText = `Network error: ${err.message}`;
+    }
+}
+
+function generateUserPDF({teamName, competitors, test, username, password}) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // --- PDF Content ---
+    doc.setFontSize(16);
+    doc.text("Exam Access Details", 20, 20);
+    doc.setFontSize(12);
+    doc.text('Website: https://website.com', 20, 40)
+    doc.text(`Team Name: ${teamName}`, 20, 50);
+    doc.text(`Competitors: ${competitors.join(", ") || "N/A"}`, 20, 60);
+    doc.text(`Test Name: ${test}`, 20, 70);
+    doc.text(`Username: ${username}`, 20, 80);
+    doc.text(`Password: ${password}`, 20, 90);
+
+    // --- Generate Blob URL ---
+    const pdfBlob = doc.output('blob');
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+
+    // --- Create a safe filename ---
+    const competitorsStr = competitors.join("_") || "N_A";
+    let fileName = `${teamName}_${competitorsStr}_${test}_exam_details.pdf`;
+    // Remove invalid characters and limit length
+    fileName = fileName.replace(/[\/\\?%*:|"<>]/g, "_").slice(0, 100);
+
+    // --- Trigger download ---
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // --- Optional: Open in new tab ---
+    window.open(pdfUrl, '_blank'); // Uncomment if you want a preview
+
+    // --- Revoke Blob URL after a short delay ---
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+}
+
+// --- TOGGLE MCQ OPTIONS ---
+function toggleOptions() {
+    document.getElementById('questionOptions').disabled = document.getElementById('questionType').value !== 'mcq';
+}
+
+// --- CREATE QUESTION ---
+async function createQuestion() {
+    const test = document.getElementById('questionTest').value.trim();
+    const text = document.getElementById('questionText').value.trim();
+    let answer = document.getElementById('questionAnswer').value.trim();
+    const media = document.getElementById('questionMedia').value.trim();
+    const type = document.getElementById('questionType').value;
+    const optionsStr = document.getElementById('questionOptions').value.trim();
+    const msg = document.getElementById('questionMessage');
+
+    if(!test || !text || !type){ msg.innerText="Test name, question text, and type required"; return; }
+
+    let options = [];
+    if(type==='mcq'){ 
+        options = optionsStr.split(',').map(o=>o.trim()).filter(Boolean); 
+        if(options.length<2){ msg.innerText="MCQ must have at least 2 options"; return; }
+        if(answer==='') answer=null; 
+    } else {
+        if(answer==='') answer=null; 
+    }
+
+    try{
+        const res = await fetch(`${API_BASE}/createQuestion`, {
+            method:'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ test, question_text:text, question_answer:answer, multimedia_content:media, type, options })
+        });
+        const data = await res.json();
+        msg.innerText = data.success ? `Question added to "${test}"` : `Error: ${data.error}`;
+    } catch(err){ msg.innerText = `Network error: ${err.message}`; }
+}
+
+// --- VIEW USER ANSWERS ---
+async function viewUserAnswers() {
+    const username = document.getElementById('viewUsername').value.trim();
+    const testName = document.getElementById('viewTestName').value.trim();
+    const container = document.getElementById('answersContainer');
+    const scoreContainer = document.getElementById('finalScore');
+
+    container.innerHTML = scoreContainer.innerHTML = "Loading...";
+
+    if(!username || !testName) { 
+        container.innerText="Username and Test Name required"; 
+        scoreContainer.innerText=""; 
+        return; 
+    }
+
+    try {
+        const url = `${API_BASE}/viewUserAnswers/${encodeURIComponent(username)}/${encodeURIComponent(testName)}`;
+        const res = await fetch(url, { headers: authHeaders() });
+        const data = await res.json();
+
+        if(!data.success){ 
+            container.innerText=`Error: ${data.error}`;
+            scoreContainer.innerText="";
+            return;
+        }
+
+        if(!data.answers || data.answers.length===0){ 
+            container.innerText="No submissions found"; 
+            scoreContainer.innerText=""; 
+            return;
+        }
+
+        let totalQuestions = data.answers.length;
+        let correctCount = 0;
+        let html = '<ul class="list-group">';
+        data.answers.forEach(a => {
+            let countedCorrect = 0;
+            if(a.manualScore!==null && a.manualScore!==undefined){ countedCorrect = a.manualScore; }
+            else if(a.isCorrect===true){ countedCorrect = 1; }
+            correctCount += countedCorrect;
+
+            html += `<li class="list-group-item">
+                <strong>ID:</strong> ${a.questionId} <br>
+                <strong>Q:</strong> ${a.questionText} <br>
+                <strong>Your Answer:</strong> ${a.submittedAnswer || "(no answer)"} <br>
+                <strong>Correct:</strong> ${a.correctAnswer || (a.manualScore!==null?`Manually scored: ${a.manualScore}`:"(manual grading)")} <br>
+                <strong>Status:</strong> ${a.manualScore!==null?`Manually graded: ${a.manualScore}`:(a.correctAnswer!==null?(a.isCorrect?'Correct':'Incorrect'):'Pending Manual Grading')}
+            </li>`;
+        });
+        html += '</ul>';
+        container.innerHTML = html;
+
+        const outOfBrowserSec = Math.floor((data.outOfBrowserTimeMs || 0)/1000);
+        scoreContainer.innerHTML = `<strong>${username}'s Final Score:</strong> ${data.totalScore?.toFixed(2)||0}% <br>
+            <strong>Out-of-browser Time:</strong> ${outOfBrowserSec} seconds <br>
+            <strong>Question Score:</strong> ${correctCount} / ${totalQuestions} correct`;
+    } catch(err){
+        container.innerText=`Network error: ${err.message}`;
+        scoreContainer.innerText="";
+    }
+}
+
+// --- VIEW PENDING MANUAL GRADING ---
+async function viewPendingManual() {
+    const testName = document.getElementById('pendingTestName').value.trim();
+    const container = document.getElementById('pendingTestContainer');
+    container.innerHTML="Loading...";
+
+    if(!testName){ container.innerText="Test Name required"; return; }
+
+    try {
+        const res = await fetch(`${API_BASE}/pendingManualGrading/${encodeURIComponent(testName)}`, { headers: authHeaders() });
+        const data = await res.json();
+
+        if(!data.success){ container.innerText=`Error: ${data.error}`; return; }
+        if(!data.pendingQuestions || data.pendingQuestions.length===0){ container.innerText="No pending questions for this test."; return; }
+
+        let html='<ul class="list-group">';
+        data.pendingQuestions.forEach((q,index)=>{
+            html+=`<li class="list-group-item mb-2">
+                <strong>Username:</strong> ${q.username} <br>
+                <strong>Question ID:</strong> ${q.questionId} <br>
+                <strong>Submitted Answer:</strong> ${q.submittedAnswer || "(no answer)"} <br>
+                <div class="mt-2">
+                    <input type="number" step="0.01" min="0" max="1" id="manualScore_${index}" class="form-control mb-1" placeholder="Score (0-1)">
+                    <button class="btn btn-sm btn-warning" onclick="submitManualScore('${q.username}','${testName}',${q.questionId},${index})">Submit Score</button>
+                    <span id="msg_${index}" class="ms-2"></span>
+                </div>
+            </li>`;
+        });
+        html+='</ul>';
+        container.innerHTML=html;
+    } catch(err){ container.innerText=`Network error: ${err.message}`; }
+}
+
+// --- SUBMIT MANUAL SCORE ---
+async function submitManualScore(username,testName,questionId,index){
+    const scoreInput=document.getElementById(`manualScore_${index}`);
+    const msgSpan=document.getElementById(`msg_${index}`);
+    const score=parseFloat(scoreInput.value);
+
+    if(isNaN(score)||score<0||score>1){ msgSpan.innerText="Enter a valid score (0-1)"; return; }
+
+    msgSpan.innerText="Submitting...";
+
+    try{
+        const res = await fetch(`${API_BASE}/gradeQuestion`,{
+            method:'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ username, testName, questionId, scoreDelta:score })
+        });
+        const data = await res.json();
+        if(data.success){ 
+            msgSpan.innerText=`Score submitted! New total: ${data.newScore.toFixed(2)}%`;
+            scoreInput.disabled=true;
+        } else { msgSpan.innerText=`Error: ${data.error}`; }
+    } catch(err){ msgSpan.innerText=`Network error: ${err.message}`; }
+}
+
+// --- VIEW RANKINGS ---
+async function viewRankings() {
+    const testName=document.getElementById('rankingTestName').value.trim();
+    const container=document.getElementById('rankingContainer');
+
+    if(!testName){ container.innerText="Test Name required"; return; }
+    container.innerText="Loading...";
+
+    try{
+        const res = await fetch(`${API_BASE}/rankings/${encodeURIComponent(testName)}`, { headers: authHeaders() });
+        const data = await res.json();
+
+        if(!data.success){ container.innerText=`Error: ${data.error}`; return; }
+        if(!data.rankings || data.rankings.length===0){ container.innerText="No submissions yet."; return; }
+
+        let html='<table class="table table-striped"><thead><tr><th>Rank</th><th>Username</th><th>Score (%)</th><th>Out-of-browser Time (s)</th></tr></thead><tbody>';
+        data.rankings.forEach(r=>{
+            html+=`<tr>
+                <td>${r.rank}</td>
+                <td>${r.username}</td>
+                <td>${r.score.toFixed(2)}</td>
+                <td>${Math.floor(r.outOfBrowserTimeMs/1000)}</td>
+            </tr>`;
+        });
+        html+='</tbody></table>';
+        container.innerHTML=html;
+    } catch(err){ container.innerText=`Network error: ${err.message}`; }
+}
+</script>
+</body>
+</html>
