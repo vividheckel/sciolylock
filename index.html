@@ -151,7 +151,7 @@ async function resumeExam(username, test) {
         const qRes = await fetch('https://scioly-backend.onrender.com/startTest', {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username,test,numQuestions:5})
+            body:JSON.stringify({username,test,numQuestions:10})
         });
         const qData = await qRes.json();
         if (!qData.success) { 
