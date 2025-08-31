@@ -153,7 +153,7 @@ async function resumeExam(username, test) {
         const qRes = await fetch(`${API_BASE}/startTest`, {
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username,test,numQuestions:15})
+            body:JSON.stringify({username,test,numQuestions:50})
         });
         const qData = await qRes.json();
         if (!qData.success) { 
