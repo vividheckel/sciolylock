@@ -13,6 +13,11 @@
     color: #e0e0e0;
   }
 
+  .container {
+    max-width: 800px;
+    padding: 40px 20px;
+  }
+
   #examContainer {
     display: none;
     height: 100vh;
@@ -40,6 +45,18 @@
     border-radius: 8px;
   }
 
+  .question.correct {
+    border-left: 4px solid #4caf50;
+  }
+
+  .question.incorrect {
+    border-left: 4px solid #f44336;
+  }
+
+  .question.pending {
+    border-left: 4px solid #ff9800;
+  }
+
   .flag-btn {
     cursor: pointer;
   }
@@ -60,13 +77,18 @@
     font-weight: bold;
   }
 
-  input, select, button {
+  input, select, button, textarea {
     background-color: #2c2c2c;
     color: #e0e0e0;
     border: 1px solid #555;
   }
 
-  input:disabled, select:disabled {
+  textarea {
+    min-height: 150px;
+    font-family: inherit;
+  }
+
+  input:disabled, select:disabled, textarea:disabled {
     background-color: #3a3a3a;
   }
 
@@ -82,10 +104,54 @@
   .progress-bar {
     background-color: #4caf50;
   }
+
+  .test-card {
+    background-color: #1e1e1e;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .test-card:hover {
+    background-color: #2a2a2a;
+  }
+
+  .test-card.submitted {
+    border-left: 4px solid #4caf50;
+  }
+
+  .test-card.pending {
+    border-left: 4px solid #ff9800;
+  }
+
+  .badge-custom {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.85em;
+  }
+
+  .badge-submitted {
+    background-color: #4caf50;
+  }
+
+  .badge-pending {
+    background-color: #ff9800;
+  }
+
+  .practice-mode-banner {
+    background-color: #2196f3;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
 </style>
 </head>
 <body>
 
+<!-- LOGIN -->
 <div id="loginContainer" class="container p-5">
   <h2 class="mb-3">Exam Login</h2>
   <div class="mb-3">
@@ -97,10 +163,22 @@
     <input type="password" id="password" class="form-control" placeholder="Enter password">
   </div>
   <button type="button" class="btn btn-primary" onclick="login()">Login</button>
+  <div id="loginMessage" class="mt-2 text-danger"></div>
 </div>
 
+<!-- TEST SELECTION -->
+<div id="testSelectionContainer" class="container" style="display:none;">
+  <h2 class="mb-4">Select a Test</h2>
+  <div id="testList"></div>
+  <button type="button" class="btn btn-secondary mt-3" onclick="logout()">Logout</button>
+</div>
+
+<!-- EXAM INTERFACE -->
 <div id="examContainer">
   <div id="sidebar">
+    <div id="practiceModeBanner" class="practice-mode-banner" style="display:none;">
+      PRACTICE MODE - Review & Improve
+    </div>
     <h4>Timer</h4>
     <div class="progress">
         <div class="progress-bar progress-bar-striped" style="width:100%" id="progressBar">
@@ -116,118 +194,35 @@
   <div id="questionsWrapper">
     <div id="questionsContainer"></div>
     <button type="button" class="btn btn-success mt-3" onclick="submitExam()">Submit Exam</button>
+    <button type="button" class="btn btn-secondary mt-3 ms-2" onclick="backToTestSelection()">Back to Tests</button>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-const API_BASE = 'https://scioly-backend.onrender.com';
+const API_BASE = 'http://localhost:3000';
 
+let currentUsername = '';
 let outOfFocusTime = 0;
 let focusStart = null;
 let timerInterval = null;
-let countdownInterval = null;
-let timeLeft = 3600; // 1 hour
+let timeLeft = 3600;
 let answers = {};
 let flagged = {};
 let testName = '';
 let questionsList = [];
-let outOfFocusSubmitted = false;
-
-window.addEventListener('DOMContentLoaded', () => {
-    const savedUsername = localStorage.getItem('exam_username');
-    const savedTest = localStorage.getItem('exam_test');
-    const inProgress = localStorage.getItem('exam_inProgress') === 'true';
-
-    // Only resume exam if flag is true
-    if (savedUsername && savedTest && inProgress) {
-        document.getElementById('username').value = savedUsername;
-        testName = savedTest;
-        resumeExam(savedUsername, savedTest);
-    }
-});
-
-
-async function resumeExam(username, test) {
-    try {
-        const qRes = await fetch(`${API_BASE}/startTest`, {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username,test,numQuestions:50})
-        });
-        const qData = await qRes.json();
-        if (!qData.success) { 
-            alert("No exam available!"); 
-            localStorage.setItem('exam_inProgress', 'false'); // mark exam as not in progress
-            return; 
-        }
-
-        document.getElementById('loginContainer').style.display = 'none';
-        document.getElementById('examContainer').style.display = 'flex';
-        answers = loadProgress();
-        const savedOutOfFocus = localStorage.getItem(`exam_outOfFocus_${username}_${testName}`);
-        if (savedOutOfFocus) outOfFocusTime = parseInt(savedOutOfFocus, 10);
-        questionsList = qData.questions;
-        renderQuestions(questionsList, answers);
-        startExam();
-    } catch (err) { console.error(err); alert("Failed to load exam."); }
-}
-
-function updateStatus() {
-    document.getElementById('focusStatus').innerText = `Time out of focus: ${Math.floor(outOfFocusTime/1000)} sec`;
-    updateAnsweredCount();
-}
-
-function updateAnsweredCount() {
-    const total = questionsList.length;
-    const answered = Object.keys(answers).filter(k => answers[k] && answers[k] !== '').length;
-    document.getElementById('answeredStatus').innerText = `Answered ${answered}/${total}`;
-}
-
-function saveProgress() {
-    const username = document.getElementById('username').value;
-    localStorage.setItem(`exam_answers_${username}_${testName}`, JSON.stringify(answers));
-    localStorage.setItem(`exam_timeLeft_${username}_${testName}`, timeLeft);
-    localStorage.setItem(`exam_outOfFocus_${username}_${testName}`, outOfFocusTime);
-}
-
-function loadProgress() {
-    const username = document.getElementById('username').value;
-    if (!username || !testName) return {};
-
-    const savedAnswers = localStorage.getItem(`exam_answers_${username}_${testName}`);
-    const savedTimeLeft = localStorage.getItem(`exam_timeLeft_${username}_${testName}`);
-    const savedOutOfFocus = localStorage.getItem(`exam_outOfFocus_${username}_${testName}`);
-
-    if (savedTimeLeft) timeLeft = parseInt(savedTimeLeft, 10);
-    if (savedOutOfFocus) outOfFocusTime = parseInt(savedOutOfFocus, 10);
-
-    return savedAnswers ? JSON.parse(savedAnswers) : {};
-}
-
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-        focusStart = performance.now();
-        timerInterval = setInterval(() => {
-            let current = performance.now();
-            outOfFocusTime += current - focusStart;
-            focusStart = current;
-            updateStatus();
-        }, 50);
-    } else {
-        if (focusStart) {
-            outOfFocusTime += performance.now() - focusStart;
-            focusStart = null;
-            updateStatus();
-        }
-        clearInterval(timerInterval);
-    }
-});
+let isPracticeMode = false;
+let examStartTime = null;
 
 async function login() {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    if (!username || !password) { alert("Enter username and password."); return; }
+    const msg = document.getElementById('loginMessage');
+    
+    if (!username || !password) { 
+        msg.innerText = "Enter username and password."; 
+        return; 
+    }
 
     try {
         const res = await fetch(`${API_BASE}/login`, {
@@ -236,31 +231,143 @@ async function login() {
             body:JSON.stringify({username,password})
         });
         const data = await res.json();
-        if (!data.success) { alert("Invalid username or password."); return; }
-        testName = data.test;
+        
+        if (!data.success) { 
+            msg.innerText = data.error || "Invalid username or password."; 
+            return; 
+        }
 
-        // Save session
-        localStorage.setItem('exam_username', username);
-        localStorage.setItem('exam_test', testName);
-        localStorage.setItem('exam_inProgress', 'true'); // mark exam in progress
-
-        resumeExam(username, testName);
-    } catch (err) { console.error(err); alert("Login failed due to network or server error."); }
+        currentUsername = username;
+        
+        if (data.tests && data.tests.length > 0) {
+            showTestSelection(data.tests);
+        } else {
+            msg.innerText = "No tests assigned to you.";
+        }
+    } catch (err) { 
+        console.error(err); 
+        msg.innerText = "Login failed due to network or server error."; 
+    }
 }
 
-function renderQuestions(questions, savedAnswers={}) {
+function showTestSelection(tests) {
+    document.getElementById('loginContainer').style.display = 'none';
+    document.getElementById('testSelectionContainer').style.display = 'block';
+    
+    const testList = document.getElementById('testList');
+    testList.innerHTML = '';
+    
+    tests.forEach(test => {
+        const card = document.createElement('div');
+        card.className = `test-card ${test.submitted ? 'submitted' : 'pending'}`;
+        
+        let statusBadge = test.submitted 
+            ? `<span class="badge-custom badge-submitted">Submitted - Score: ${test.score?.toFixed(1)}%</span>`
+            : `<span class="badge-custom badge-pending">Not Started</span>`;
+        
+        let practiceButton = test.submitted
+            ? `<button class="btn btn-sm btn-info ms-2" onclick="startTest('${test.testName}', true)">Practice Mode</button>`
+            : '';
+        
+        card.innerHTML = `
+            <h4>${test.testName}</h4>
+            ${statusBadge}
+            ${practiceButton}
+            ${!test.submitted ? `<button class="btn btn-sm btn-primary ms-2" onclick="startTest('${test.testName}', false)">Start Test</button>` : ''}
+        `;
+        
+        testList.appendChild(card);
+    });
+}
+
+async function startTest(test, practice) {
+    testName = test;
+    isPracticeMode = practice;
+    examStartTime = new Date();
+    
+    try {
+        const res = await fetch(`${API_BASE}/startTest`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username: currentUsername, test, isPractice: practice})
+        });
+        const data = await res.json();
+        
+        if (!data.success) { 
+            alert(data.error || "Failed to start test"); 
+            return; 
+        }
+
+        document.getElementById('testSelectionContainer').style.display = 'none';
+        document.getElementById('examContainer').style.display = 'flex';
+        
+        if (isPracticeMode) {
+            document.getElementById('practiceModeBanner').style.display = 'block';
+            document.getElementById('timerText').parentElement.innerHTML = 'No Time Limit';
+        } else {
+            document.getElementById('practiceModeBanner').style.display = 'none';
+        }
+        
+        questionsList = data.questions;
+        answers = {};
+        flagged = {};
+        
+        renderQuestions(questionsList);
+        
+        if (!isPracticeMode) {
+            startExamLockdown();
+        }
+    } catch (err) { 
+        console.error(err); 
+        alert("Failed to load exam."); 
+    }
+}
+
+function renderQuestions(questions) {
     const container = document.getElementById('questionsContainer');
     container.innerHTML = '';
-    flagged = {};
+    
     questions.forEach((q, index) => {
         const div = document.createElement('div');
         div.className = 'question';
         div.id = `questionDiv_${q.id}`;
-
-        const saved = savedAnswers[q.id] || '';
+        
+        // In practice mode, show correctness
+        if (isPracticeMode) {
+            if (q.wasCorrect === true) {
+                div.classList.add('correct');
+            } else if (q.wasCorrect === false) {
+                div.classList.add('incorrect');
+            } else if (q.previousManualScore !== null && q.previousManualScore !== undefined) {
+                if (q.previousManualScore > 0) {
+                    div.classList.add('correct');
+                } else {
+                    div.classList.add('incorrect');
+                }
+            } else {
+                div.classList.add('pending');
+            }
+        }
+        
+        const saved = q.previousAnswer || '';
         answers[q.id] = saved;
 
         let html = `<p><strong>Q${index+1}:</strong> ${q.question_text}</p>`;
+        
+        if (isPracticeMode) {
+            let statusText = '';
+            if (q.wasCorrect === true) {
+                statusText = '<span class="text-success">✓ Correct</span>';
+            } else if (q.wasCorrect === false) {
+                statusText = '<span class="text-danger">✗ Incorrect</span>';
+            } else if (q.previousManualScore !== null && q.previousManualScore !== undefined) {
+                statusText = `<span class="text-info">Manually Graded: ${q.previousManualScore}</span>`;
+            } else {
+                statusText = '<span class="text-warning">Pending Manual Grading</span>';
+            }
+            html += `<p>${statusText}</p>`;
+        }
+        
         if (q.multimedia_content) {
             html += `<img src="${q.multimedia_content}" class="img-fluid mb-2" alt="Question image" style="max-width:400px; max-height:300px;">`;
         }
@@ -270,20 +377,24 @@ function renderQuestions(questions, savedAnswers={}) {
                 const checked = saved === opt ? 'checked' : '';
                 html += `<div class="form-check">
                     <input class="form-check-input" type="radio" name="question_${q.id}" value="${opt}" ${checked}
-                        onchange="answers[${q.id}]=this.value; saveProgress(); updateAnsweredCount();">
+                        onchange="answers[${q.id}]=this.value; updateAnsweredCount();">
                     <label class="form-check-label">${opt}</label>
                 </div>`;
             });
         } else {
-            html += `<input type="text" class="form-control" value="${saved}"
-                oninput="answers[${q.id}]=this.value; saveProgress(); updateAnsweredCount();"
-                oncopy="return false;" onpaste="return false;" oncut="return false;">`;
+            // Large text area for free response
+            html += `<textarea class="form-control" oninput="answers[${q.id}]=this.value; updateAnsweredCount();"
+                oncopy="return ${isPracticeMode};" onpaste="return ${isPracticeMode};" oncut="return ${isPracticeMode};">${saved}</textarea>`;
         }
 
-        html += `<button type="button" class="btn btn-warning btn-sm mt-2 flag-btn" onclick="toggleFlag(${q.id})">Flag for Review</button>`;
+        if (!isPracticeMode) {
+            html += `<button type="button" class="btn btn-warning btn-sm mt-2 flag-btn" onclick="toggleFlag(${q.id})">Flag for Review</button>`;
+        }
+        
         div.innerHTML = html;
         container.appendChild(div);
     });
+    
     renderSidebarQuestions();
     updateAnsweredCount();
 }
@@ -309,16 +420,14 @@ function renderSidebarQuestions() {
     });
 }
 
-function startExam() {
-    const username = document.getElementById('username').value;
-    const savedOutOfFocus = localStorage.getItem(`exam_outOfFocus_${username}_${testName}`);
-    if (savedOutOfFocus) {
-        outOfFocusTime = parseInt(savedOutOfFocus, 10);
-    } else {
-        outOfFocusTime = 0;
-    }
+function updateAnsweredCount() {
+    const total = questionsList.length;
+    const answered = Object.keys(answers).filter(k => answers[k] && answers[k] !== '').length;
+    document.getElementById('answeredStatus').innerText = `Answered ${answered}/${total}`;
+}
 
-    outOfFocusSubmitted = false;
+function startExamLockdown() {
+    outOfFocusTime = 0;
     focusStart = document.hidden ? performance.now() : null;
 
     updateStatus();
@@ -327,13 +436,14 @@ function startExam() {
     document.addEventListener('keydown', e=>{
         if (e.key==='F12' || (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='i') ||
             (e.ctrlKey && ['w','r','t'].includes(e.key.toLowerCase()))) {
-            e.preventDefault(); alert("Shortcut disabled.");
+            e.preventDefault(); 
+            alert("Shortcut disabled.");
         }
     });
 
-    // === Reliable exam timer ===
-    let lastTick = Date.now();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    let lastTick = Date.now();
     timerInterval = setInterval(() => {
         const now = Date.now();
         const delta = Math.floor((now - lastTick) / 1000);
@@ -351,12 +461,26 @@ function startExam() {
             }
 
             updateTimerUI();
-            saveProgress();
-            updateStatus();
         }
     }, 1000);
 
-    updateTimerUI(); // initial display
+    updateTimerUI();
+}
+
+function handleVisibilityChange() {
+    if (document.hidden) {
+        focusStart = performance.now();
+    } else {
+        if (focusStart) {
+            outOfFocusTime += performance.now() - focusStart;
+            focusStart = null;
+            updateStatus();
+        }
+    }
+}
+
+function updateStatus() {
+    document.getElementById('focusStatus').innerText = `Time out of focus: ${Math.floor(outOfFocusTime/1000)} sec`;
 }
 
 function updateTimerUI() {
@@ -367,44 +491,70 @@ function updateTimerUI() {
 }
 
 async function submitExam() {
-    if (!confirm("Are you sure you want to submit the exam?")) return;
+    if (!confirm(isPracticeMode ? "Submit your updated answers?" : "Are you sure you want to submit the exam?")) return;
 
-    if (focusStart) outOfFocusTime += Date.now() - focusStart;
-    const username = document.getElementById('username').value;
+    if (!isPracticeMode && focusStart) {
+        outOfFocusTime += Date.now() - focusStart;
+    }
+
+    const examEndTime = new Date();
 
     try {
         const res = await fetch(`${API_BASE}/submitTest`,{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({
-                username,
+                username: currentUsername,
                 testName,
                 outOfBrowserTimeMs: Math.floor(outOfFocusTime),
-                answers: Object.entries(answers).map(([qid,ans])=>({questionId:Number(qid),answer:ans}))
+                answers: Object.entries(answers).map(([qid,ans])=>({questionId:Number(qid),answer:ans})),
+                isPractice: isPracticeMode,
+                startTime: examStartTime,
+                endTime: examEndTime
             })
         });
         const data = await res.json();
-        if (!data.success) { alert("Submit failed"); return; }
+        
+        if (!data.success) { 
+            alert("Submit failed"); 
+            return; 
+        }
 
-        alert("Exam submitted!");
-        // Clear progress and in-progress flag
-        localStorage.removeItem(`exam_answers_${username}_${testName}`);
-        localStorage.removeItem(`exam_timeLeft_${username}_${testName}`);
-        localStorage.removeItem(`exam_outOfFocus_${username}_${testName}`);
-        localStorage.removeItem('exam_username');
-        localStorage.removeItem('exam_test');
-        localStorage.setItem('exam_inProgress', 'false');
+        if (isPracticeMode) {
+            alert(`Practice submission complete! Your updated score: ${data.totalScore?.toFixed(1)}%`);
+        } else {
+            alert(`Exam submitted! Your score: ${data.totalScore?.toFixed(1)}%`);
+        }
 
-        clearInterval(countdownInterval); 
-        clearInterval(timerInterval); 
-        outOfFocusTime=0; timeLeft=3600; answers={};
-        if (document.fullscreenElement) document.exitFullscreen();
-
-        document.getElementById('examContainer').style.display = 'none';
-        document.getElementById('loginContainer').style.display = 'block';
-    } catch(err) { console.error(err); alert("Submit failed"); }
+        backToTestSelection();
+    } catch(err) { 
+        console.error(err); 
+        alert("Submit failed"); 
+    }
 }
 
+function backToTestSelection() {
+    clearInterval(timerInterval);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    
+    outOfFocusTime = 0;
+    timeLeft = 3600;
+    answers = {};
+    flagged = {};
+    
+    document.getElementById('examContainer').style.display = 'none';
+    
+    // Reload test list
+    login();
+}
+
+function logout() {
+    document.getElementById('testSelectionContainer').style.display = 'none';
+    document.getElementById('loginContainer').style.display = 'block';
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    currentUsername = '';
+}
 </script>
 </body>
 </html>

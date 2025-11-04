@@ -28,17 +28,21 @@
     border-radius: 10px;
   }
 
-  input, select, button {
+  input, select, button, textarea {
     background-color: #2c2c2c;
     color: #e0e0e0;
     border: 1px solid #555;
+  }
+
+  textarea {
+    min-height: 150px;
   }
 
   input:disabled, select:disabled {
     background-color: #3a3a3a;
   }
 
-  #answersContainer, #finalScore, #pendingTestContainer, #rankingContainer {
+  .result-container {
     background-color: #2c2c2c;
     color: #e0e0e0;
     padding: 15px;
@@ -83,165 +87,244 @@
 <div id="dashboard" class="container" style="display:none;">
   <h1 class="mb-4">Admin Dashboard</h1>
 
+  <!-- VIEW ALL TESTS -->
+  <div class="section">
+    <h3>Available Tests</h3>
+    <button class="btn btn-info" onclick="viewAllTests()">View All Tests</button>
+    <div id="testsContainer" class="mt-3 result-container"></div>
+  </div>
+
   <!-- CREATE USER -->
-    <div class="section">
-        <h3>Create User</h3>
-        <div class="row g-3 align-items-center">
-            <div class="col-md-4">
-                <input type="text" id="newUserTest" class="form-control" placeholder="Test Name">
-            </div>
-            <div class="col-md-4">
-                <button type="button" class="btn btn-primary w-100" onclick="createUser()">Create User</button>
-            </div>
-            <div class="col-md-4"></div> <!-- Empty column to align with other rows -->
-        </div>
-        <div id="userMessage" class="mt-2"></div>
+  <div class="section">
+    <h3>Create User</h3>
+    <div class="row g-3 align-items-center">
+      <div class="col-md-4">
+        <input type="text" id="newTeamName" class="form-control" placeholder="Team Name (optional)">
+      </div>
+      <div class="col-md-4">
+        <button type="button" class="btn btn-primary w-100" onclick="createUser()">Create User</button>
+      </div>
     </div>
+    <div id="userMessage" class="mt-2"></div>
+  </div>
+
+  <!-- ASSIGN TEST TO USER -->
+  <div class="section">
+    <h3>Assign Test to User</h3>
+    <div class="row g-3 align-items-center">
+      <div class="col-md-3">
+        <input type="text" id="assignUsername" class="form-control" placeholder="Username">
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="assignTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-2">
+        <input type="number" id="assignNumQuestions" class="form-control" placeholder="# Questions" value="5" min="1">
+      </div>
+      <div class="col-md-2">
+        <select id="assignMode" class="form-select">
+          <option value="random">Random</option>
+          <option value="ordered">Ordered</option>
+          <option value="all">All Questions</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-success w-100" onclick="assignTest()">Assign</button>
+      </div>
+    </div>
+    <div id="assignMessage" class="mt-2"></div>
+  </div>
 
   <!-- CREATE QUESTION -->
   <div class="section">
     <h3>Create Question</h3>
     <div class="row g-3">
-      <div class="col-md-3"><input type="text" id="questionTest" class="form-control" placeholder="Test Name"></div>
-      <div class="col-md-3"><input type="text" id="questionText" class="form-control" placeholder="Question Text"></div>
-      <div class="col-md-3"><input type="text" id="questionAnswer" class="form-control" placeholder="Correct Answer (blank = manual)"></div>
-      <div class="col-md-3"><input type="text" id="questionMedia" class="form-control" placeholder="Multimedia URL"></div>
-      <div class="col-md-3 mt-2"><input type="number" id="questionPoints" class="form-control" placeholder="Points" min="0" step="0.1" value="1"></div>
-      <div class="col-md-3 mt-2">
+      <div class="col-md-3">
+        <input type="text" id="questionTest" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-9">
+        <textarea id="questionText" class="form-control" placeholder="Question Text" rows="3"></textarea>
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="questionAnswer" class="form-control" placeholder="Correct Answer (blank = manual)">
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="questionMedia" class="form-control" placeholder="Multimedia URL">
+      </div>
+      <div class="col-md-2">
+        <input type="number" id="questionPoints" class="form-control" placeholder="Points" min="0" step="0.1" value="1">
+      </div>
+      <div class="col-md-2">
         <select id="questionType" class="form-select" onchange="toggleOptions()">
-          <option value="mcq">MCQ</option>
-          <option value="text">Text</option>
+          <option value="mcq">Multiple Choice</option>
+          <option value="text">Free Response (Auto-grade)</option>
+          <option value="manual">Free Response (Manual Grade)</option>
         </select>
       </div>
-      <div class="col-md-6 mt-2">
-        <input type="text" id="questionOptions" class="form-control" placeholder="Options (comma-separated)">
+      <div class="col-md-2">
+        <button type="button" class="btn btn-success w-100" onclick="createQuestion()">Create</button>
       </div>
-      <div class="col-md-3 mt-2">
-        <button type="button" class="btn btn-success" onclick="createQuestion()">Create Question</button>
+      <div class="col-md-12">
+        <input type="text" id="questionOptions" class="form-control" placeholder="MCQ Options (comma-separated)">
       </div>
     </div>
     <div id="questionMessage" class="mt-2"></div>
   </div>
 
-    <!-- EDIT QUESTION -->
-    <div class="section" id="editQuestionForm">
-        <h3>Load & Edit Question</h3>
-        <div class="row g-3 mb-2">
-            <div class="col-md-6">
-                <input type="number" id="editQuestionId" class="form-control" placeholder="Enter Question ID to load">
-            </div>
-            <div class="col-md-6">
-                <button class="btn btn-info w-100" onclick="loadQuestion()">Load Question</button>
-            </div>
-        </div>
-
-        <!-- Once loaded, the following fields will be populated -->
-        <div class="row g-3 mt-3">
-            <div class="col-md-3">
-                <input type="text" id="editQuestionTest" class="form-control" placeholder="Test Name">
-            </div>
-            <div class="col-md-3">
-                <input type="text" id="editQuestionText" class="form-control" placeholder="Question Text">
-            </div>
-            <div class="col-md-3">
-                <input type="text" id="editQuestionAnswer" class="form-control" placeholder="Correct Answer (blank = manual)">
-            </div>
-            <div class="col-md-3">
-                <input type="text" id="editQuestionMedia" class="form-control" placeholder="Multimedia URL">
-            </div>
-            <div class="col-md-3 mt-2">
-                <input type="number" id="editQuestionPoints" class="form-control" placeholder="Points" min="0" step="0.1" value="1">
-            </div>
-            <div class="col-md-3 mt-2">
-                <select id="editQuestionType" class="form-select" onchange="toggleEditOptions()">
-                    <option value="mcq">MCQ</option>
-                    <option value="text">Text</option>
-                </select>
-            </div>
-            <div class="col-md-6 mt-2">
-                <input type="text" id="editQuestionOptions" class="form-control" placeholder="Options (comma-separated)">
-            </div>
-            <div class="col-md-3 mt-2">
-                <button class="btn btn-success w-100" onclick="submitEditQuestion()">Save Changes</button>
-            </div>
-        </div>
-        <div id="editQuestionMessage" class="mt-2 text-success"></div>
+  <!-- EDIT QUESTION -->
+  <div class="section">
+    <h3>Load & Edit Question</h3>
+    <div class="row g-3 mb-2">
+      <div class="col-md-6">
+        <input type="number" id="editQuestionId" class="form-control" placeholder="Question ID">
+      </div>
+      <div class="col-md-6">
+        <button class="btn btn-info w-100" onclick="loadQuestion()">Load</button>
+      </div>
     </div>
+    <div class="row g-3 mt-3">
+      <div class="col-md-3">
+        <input type="text" id="editQuestionTest" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-9">
+        <textarea id="editQuestionText" class="form-control" placeholder="Question Text" rows="3"></textarea>
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="editQuestionAnswer" class="form-control" placeholder="Correct Answer">
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="editQuestionMedia" class="form-control" placeholder="Multimedia URL">
+      </div>
+      <div class="col-md-2">
+        <input type="number" id="editQuestionPoints" class="form-control" placeholder="Points" min="0" step="0.1">
+      </div>
+      <div class="col-md-2">
+        <select id="editQuestionType" class="form-select">
+          <option value="mcq">MCQ</option>
+          <option value="text">Text</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-success w-100" onclick="submitEditQuestion()">Save</button>
+      </div>
+      <div class="col-md-12">
+        <input type="text" id="editQuestionOptions" class="form-control" placeholder="MCQ Options">
+      </div>
+    </div>
+    <div id="editQuestionMessage" class="mt-2"></div>
+  </div>
+
+  <!-- CREATE GRADER -->
+  <div class="section">
+    <h3>Grader Management</h3>
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <input type="text" id="graderUsername" class="form-control" placeholder="Grader Username">
+      </div>
+      <div class="col-md-4">
+        <input type="password" id="graderPassword" class="form-control" placeholder="Grader Password">
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-primary w-100" onclick="createGrader()">Create Grader</button>
+      </div>
+    </div>
+    <button class="btn btn-info" onclick="loadGraders()">View All Graders</button>
+    <div id="gradersContainer" class="mt-3 result-container"></div>
+    <div id="graderMessage" class="mt-2"></div>
+  </div>
+
+  <!-- ASSIGN GRADER -->
+  <div class="section">
+    <h3>Assign Submission to Grader</h3>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <input type="text" id="assignGraderUsername" class="form-control" placeholder="Grader Username">
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="assignGraderStudentUsername" class="form-control" placeholder="Student Username">
+      </div>
+      <div class="col-md-3">
+        <input type="text" id="assignGraderTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-success w-100" onclick="assignGrader()">Assign</button>
+      </div>
+    </div>
+    <div id="assignGraderMessage" class="mt-2"></div>
+  </div>
+
+  <!-- VIEW & GRADE USER ANSWERS -->
+  <div class="section">
+    <h3>View & Grade User Answers</h3>
+    <div class="row g-3 mb-2">
+      <div class="col-md-4">
+        <input type="text" id="viewUsername" class="form-control" placeholder="Username">
+      </div>
+      <div class="col-md-4">
+        <input type="text" id="viewTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-4">
+        <button class="btn btn-info w-100" onclick="viewUserAnswers()">View</button>
+      </div>
+    </div>
+    <div id="answersContainer" class="mt-2 result-container"></div>
+    <div id="finalScore" class="mt-2 result-container"></div>
+  </div>
 
   <!-- MANUAL GRADING -->
   <div class="section">
     <h3>Pending Manual Grading</h3>
     <div class="row g-3 mb-2">
-      <div class="col-md-6"><input type="text" id="pendingTestName" class="form-control" placeholder="Test Name"></div>
-      <div class="col-md-6"><button class="btn btn-secondary" onclick="viewPendingManual()">View Pending Questions</button></div>
+      <div class="col-md-6">
+        <input type="text" id="pendingTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-6">
+        <button class="btn btn-secondary" onclick="viewPendingManual()">View Pending</button>
+      </div>
     </div>
-    <div id="pendingTestContainer" class="mt-2"></div>
+    <div id="pendingTestContainer" class="mt-2 result-container"></div>
   </div>
-
-<!-- VIEW & GRADE USER ANSWERS -->
-<div class="section">
-    <h3>View & Grade User Answers</h3>
-    <div class="row g-3 mb-2">
-        <div class="col-md-4">
-            <input type="text" id="viewUsername" class="form-control" placeholder="Username">
-        </div>
-        <div class="col-md-4">
-            <input type="text" id="viewTestName" class="form-control" placeholder="Test Name">
-        </div>
-        <div class="col-md-4">
-            <button class="btn btn-info w-100" onclick="viewUserAnswers()">View Answers</button>
-        </div>
-    </div>
-    <div id="answersContainer" class="mt-2"></div>
-    <div id="finalScore" class="mt-2"></div>
-</div>
 
   <!-- RANKINGS -->
   <div class="section">
     <h3>Test Rankings</h3>
     <div class="row g-3 mb-2">
-      <div class="col-md-6"><input type="text" id="rankingTestName" class="form-control" placeholder="Test Name"></div>
-      <div class="col-md-6"><button class="btn btn-info" onclick="viewRankings()">View Rankings</button></div>
+      <div class="col-md-6">
+        <input type="text" id="rankingTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-6">
+        <button class="btn btn-info" onclick="viewRankings()">View</button>
+      </div>
     </div>
-    <div id="rankingContainer" class="mt-2"></div>
+    <div id="rankingContainer" class="mt-2 result-container"></div>
   </div>
 
-<!-- VIEW / MANAGE QUESTIONS -->
-<div class="section">
+  <!-- MANAGE QUESTIONS -->
+  <div class="section">
     <h3>Manage Questions</h3>
-
-    <!-- View Questions -->
     <div class="row g-3 mb-2">
-        <div class="col-md-6">
-            <input type="text" id="manageTestName" class="form-control" placeholder="Test Name">
-        </div>
-        <div class="col-md-6">
-            <button class="btn btn-info" onclick="viewQuestions()">View Questions</button>
-        </div>
+      <div class="col-md-6">
+        <input type="text" id="manageTestName" class="form-control" placeholder="Test Name">
+      </div>
+      <div class="col-md-6">
+        <button class="btn btn-info" onclick="viewQuestions()">View</button>
+      </div>
     </div>
-    <div id="questionListContainer"></div>
-</div>
-
-<!-- MANAGE USERS -->
-<div class="section">
-  <h3>Manage Users</h3>
-
-  <!-- Load Users -->
-  <div class="row g-3 mb-2">
-    <div class="col-md-6">
-      <button class="btn btn-info w-100" onclick="loadUsers()">Load All Users</button>
-    </div>
+    <div id="questionListContainer" class="result-container"></div>
   </div>
 
-  <div id="usersContainer" class="mt-2"></div>
+  <!-- MANAGE USERS -->
+  <div class="section">
+    <h3>Manage Users</h3>
+    <button class="btn btn-info w-100 mb-3" onclick="loadUsers()">Load All Users</button>
+    <div id="usersContainer" class="result-container"></div>
+  </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
-const API_BASE = 'https://scioly-backend.onrender.com';
+const API_BASE = 'http://localhost:3000';
 let adminToken = null;
 
-// --- LOGIN ---
 async function unlockAdmin() {
     const pwd = document.getElementById('adminPassword').value;
     try {
@@ -252,9 +335,10 @@ async function unlockAdmin() {
         });
         const data = await res.json();
         if (data.success && data.token) {
-            adminToken = data.token; // store JWT token
+            adminToken = data.token;
             document.getElementById('lockScreen').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
+            viewAllTests();
         } else {
             document.getElementById('lockMsg').innerText = "Incorrect password";
         }
@@ -263,7 +347,6 @@ async function unlockAdmin() {
     }
 }
 
-// --- HELPER FOR AUTH HEADERS ---
 function authHeaders() {
     return {
         'Content-Type':'application/json',
@@ -271,95 +354,130 @@ function authHeaders() {
     };
 }
 
-// --- CREATE USER ---
-async function createUser() {
-    const test = document.getElementById('newUserTest').value.trim();
-    const msg = document.getElementById('userMessage');
-    if(!test){ msg.innerText = "Test name is required"; return; }
+async function viewAllTests() {
+    const container = document.getElementById('testsContainer');
+    container.innerHTML = "Loading...";
 
-    // Prompt for team and competitors
-    const teamName = prompt("Enter Team Name:");
-    if(!teamName){ msg.innerText = "Team name is required"; return; }
+    try {
+        const res = await fetch(`${API_BASE}/allTests`, { headers: authHeaders() });
+        const data = await res.json();
 
-    let competitors = [];
-    for(let i=1; i<=3; i++){
-        const name = prompt(`Enter competitor ${i} name (leave blank if none):`);
-        if(name) competitors.push(name);
-        if(competitors.length === 3) break;
+        if (!data.success) {
+            container.innerText = `Error: ${data.error}`;
+            return;
+        }
+
+        if (!data.tests || data.tests.length === 0) {
+            container.innerText = "No tests found.";
+            return;
+        }
+
+        let html = '<table class="table table-striped table-dark"><thead><tr><th>Test Name</th><th>Questions</th><th>Total Points</th></tr></thead><tbody>';
+        data.tests.forEach(t => {
+            html += `<tr>
+                <td>${t.testName}</td>
+                <td>${t.questionCount}</td>
+                <td>${t.totalPoints || 0}</td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerText = `Network error: ${err.message}`;
     }
+}
 
-    // Randomly generate username and password
-    const teamPart = teamName.replace(/\s+/g, '').substring(0, 3).toLowerCase(); // first 3 letters of team
-    const compPart = competitors.map(c => c[0].toLowerCase()).join(''); // initials of competitors
-    const suffix = Math.floor(Math.random() * 100); // short numeric suffix to avoid collisions
-    const username = `${teamPart}${compPart}${suffix}`; 
+async function createUser() {
+    const teamName = document.getElementById('newTeamName').value.trim();
+    const msg = document.getElementById('userMessage');
 
-    const password = Math.random().toString(36).slice(-8); // 8-char password
+    const username = `u${Date.now().toString(36).slice(-6)}`;
+    const password = Math.random().toString(36).slice(-8);
 
-    try{
-        // Call your server API to create user
-        const res = await fetch(`${API_BASE}/createUser`,{
-            method:'POST',
+    try {
+        const res = await fetch(`${API_BASE}/createUser`, {
+            method: 'POST',
             headers: authHeaders(),
-            body: JSON.stringify({ username, password, test })
+            body: JSON.stringify({ username, password })
         });
         const data = await res.json();
-        if(!data.success){ msg.innerText = `Error: ${data.error}`; return; }
+        if (!data.success) { 
+            msg.innerText = `Error: ${data.error}`; 
+            return; 
+        }
 
-        // Generate PDF
-        generateUserPDF({teamName, competitors, test, username, password});
-        msg.innerText = `User created! Username and password saved in PDF.`;
-    } catch(err){
+        msg.innerHTML = `<div class="alert alert-success">
+            User created successfully!<br>
+            <strong>Username:</strong> ${username}<br>
+            <strong>Password:</strong> ${password}<br>
+            <strong>Team:</strong> ${teamName || 'N/A'}
+        </div>`;
+    } catch (err) {
         msg.innerText = `Network error: ${err.message}`;
     }
 }
 
-function generateUserPDF({teamName, competitors, test, username, password}) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+async function assignTest() {
+    const username = document.getElementById('assignUsername').value.trim();
+    const test = document.getElementById('assignTestName').value.trim();
+    const numQuestions = parseInt(document.getElementById('assignNumQuestions').value) || 5;
+    const mode = document.getElementById('assignMode').value;
+    const msg = document.getElementById('assignMessage');
 
-    // --- PDF Content ---
-    doc.setFontSize(16);
-    doc.text("Exam Access Details", 20, 20);
-    doc.setFontSize(12);
-    doc.text('Website: https://vividheckel.github.io/sciolylock/', 20, 40)
-    doc.text(`Team Name: ${teamName}`, 20, 50);
-    doc.text(`Competitors: ${competitors.join(", ") || "N/A"}`, 20, 60);
-    doc.text(`Test Name: ${test}`, 20, 70);
-    doc.text(`Username: ${username}`, 20, 80);
-    doc.text(`Password: ${password}`, 20, 90);
+    if (!username || !test) { 
+        msg.innerText = "Username and Test Name required"; 
+        return; 
+    }
 
-    // --- Generate Blob URL ---
-    const pdfBlob = doc.output('blob');
-    const pdfUrl = URL.createObjectURL(pdfBlob);
+    msg.innerText = "Assigning...";
+    try {
+        let endpoint = `${API_BASE}/assignTest`;
+        let body = { username, test, numQuestions, randomize: mode === 'random' };
 
-    // --- Create a safe filename ---
-    const competitorsStr = competitors.join("_") || "N_A";
-    let fileName = `${teamName}_${competitorsStr}_${test}_exam_details.pdf`;
-    // Remove invalid characters and limit length
-    fileName = fileName.replace(/[\/\\?%*:|"<>]/g, "_").slice(0, 100);
+        if (mode === 'all') {
+            endpoint = `${API_BASE}/assignAllQuestions`;
+            body = { username, test };
+        }
 
-    // --- Trigger download ---
-    const a = document.createElement('a');
-    a.href = pdfUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // --- Optional: Open in new tab ---
-    window.open(pdfUrl, '_blank'); // Uncomment if you want a preview
-
-    // --- Revoke Blob URL after a short delay ---
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.success) { 
+            msg.innerText = `Error: ${data.error}`; 
+            return; 
+        }
+        msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+    } catch (err) {
+        msg.innerText = `Network error: ${err.message}`;
+    }
 }
 
-// --- TOGGLE MCQ OPTIONS ---
 function toggleOptions() {
-    document.getElementById('questionOptions').disabled = document.getElementById('questionType').value !== 'mcq';
+    const type = document.getElementById('questionType').value;
+    const optionsField = document.getElementById('questionOptions');
+    const answerField = document.getElementById('questionAnswer');
+    const answerLabel = document.getElementById('answerLabel');
+    
+    if (type === 'mcq') {
+        optionsField.disabled = false;
+        answerField.placeholder = "Correct option";
+        answerLabel.textContent = "Correct Option:";
+    } else if (type === 'text') {
+        optionsField.disabled = true;
+        optionsField.value = '';
+        answerField.placeholder = "Correct answer for auto-grading";
+        answerLabel.textContent = "Correct Answer:";
+    } else { // manual
+        optionsField.disabled = true;
+        optionsField.value = '';
+        answerField.placeholder = "Grading guidelines (not shown to students)";
+        answerLabel.textContent = "Grading Guidelines:";
+    }
 }
 
-// --- CREATE QUESTION ---
 async function createQuestion() {
     const test = document.getElementById('questionTest').value.trim();
     const text = document.getElementById('questionText').value.trim();
@@ -370,12 +488,18 @@ async function createQuestion() {
     const msg = document.getElementById('questionMessage');
     const points = parseFloat(document.getElementById('questionPoints').value) || 1;
 
-    if(!test || !text || !type){ msg.innerText="Test name, question text, and type required"; return; }
+    if(!test || !text || !type){ 
+        msg.innerText="Test name, question text, and type required"; 
+        return; 
+    }
 
     let options = [];
     if(type==='mcq'){ 
         options = optionsStr.split(',').map(o=>o.trim()).filter(Boolean); 
-        if(options.length<2){ msg.innerText="MCQ must have at least 2 options"; return; }
+        if(options.length<2){ 
+            msg.innerText="MCQ must have at least 2 options"; 
+            return; 
+        }
         if(answer==='') answer=null; 
     } else {
         if(answer==='') answer=null; 
@@ -396,501 +520,48 @@ async function createQuestion() {
             })
         });
         const data = await res.json();
-        msg.innerText = data.success ? `Question added to "${test}"` : `Error: ${data.error}`;
-    } catch(err){ msg.innerText = `Network error: ${err.message}`; }
-}
-
-// --- VIEW USER ANSWERS ---
-async function viewUserAnswers() {
-    const username = document.getElementById('viewUsername').value.trim();
-    const testName = document.getElementById('viewTestName').value.trim();
-    const container = document.getElementById('answersContainer');
-    const scoreContainer = document.getElementById('finalScore');
-
-    container.innerHTML = scoreContainer.innerHTML = "Loading...";
-
-    if (!username || !testName) {
-        container.innerText = "Username and Test Name required";
-        scoreContainer.innerText = "";
-        return;
-    }
-
-    try {
-        const url = `${API_BASE}/viewUserAnswers/${encodeURIComponent(username)}/${encodeURIComponent(testName)}`;
-        const res = await fetch(url, { headers: authHeaders() });
-        const data = await res.json();
-
-        if (!data.success) {
-            container.innerText = `Error: ${data.error}`;
-            scoreContainer.innerText = "";
-            return;
-        }
-
-        if (!data.answers || data.answers.length === 0) {
-            container.innerText = "No submissions found";
-            scoreContainer.innerText = "";
-            return;
-        }
-
-        let totalQuestions = data.answers.length;
-        let correctCount = 0;
-
-        let html = `<table class="table table-striped table-dark">
-                    <thead><tr>
-                        <th>ID</th>
-                        <th>Question</th>
-                        <th>User Answer</th>
-                        <th>Correct Answer</th>
-                        <th>Status</th>
-                        <th>Manual Score</th>
-                    </tr></thead><tbody>`;
-
-        data.answers.forEach((a, index) => {
-            const userAnswer = a.submittedAnswer || "No Answer";
-            const correctAnswer = a.correctAnswer || "Manually Graded";
-            let statusText = "";
-
-            if (a.manualScore !== null && a.manualScore !== undefined) {
-                statusText = "Manually graded";
-                correctCount += a.manualScore;
-            } else if (a.isCorrect === true) {
-                statusText = "Correct";
-                correctCount += 1;
-            } else if (a.isCorrect === false) {
-                statusText = "Incorrect";
-            } else {
-                statusText = "Pending Manual Grading";
-            }
-
-            const scoreValue = a.manualScore !== null && a.manualScore !== undefined ? a.manualScore : (a.isCorrect ? 1 : 0);
-
-            html += `<tr>
-                        <td>${a.questionId}</td>
-                        <td>${a.questionText}</td>
-                        <td>${userAnswer}</td>
-                        <td>${correctAnswer}</td>
-                        <td>${statusText}</td>
-                        <td>
-                            <input type="number" step="0.01" min="0" max="1" id="scoreInput_${index}" value="${scoreValue}" class="form-control w-50 d-inline-block">
-                            <button class="btn btn-sm btn-success ms-2" onclick="submitManualScoreDirect('${username}','${testName}',${a.questionId},${index})">Save</button>
-                            <span id="scoreMsg_${index}" class="ms-2 text-success"></span>
-                        </td>
-                     </tr>`;
-        });
-
-        html += `</tbody></table>`;
-        container.innerHTML = html;
-
-        const outOfBrowserSec = Math.floor((data.outOfBrowserTimeMs || 0) / 1000);
-        scoreContainer.innerHTML = `<strong>${username}'s Final Score:</strong> ${data.totalScore?.toFixed(2) || 0}% <br>
-            <strong>Out-of-browser Time:</strong> ${outOfBrowserSec} seconds <br>
-            <strong>Question Score:</strong> ${correctCount} / ${totalQuestions} correct`;
-
-    } catch (err) {
-        container.innerText = `Network error: ${err.message}`;
-        scoreContainer.innerText = "";
-    }
-}
-
-async function submitManualScoreDirect(username, testName, questionId, index) {
-    const input = document.getElementById(`scoreInput_${index}`);
-    const msg = document.getElementById(`scoreMsg_${index}`);
-    const score = parseFloat(input.value);
-
-    if (isNaN(score) || score < 0) { 
-        msg.innerText = "Enter a valid score"; 
-        return; 
-    }
-
-    msg.innerText = "Saving...";
-    try {
-        const res = await fetch(`${API_BASE}/gradeQuestion`, {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ username, testName, questionId, scoreDelta: score })
-        });
-        const data = await res.json();
-        if (data.success) {
-            msg.innerText = `Saved! New total: ${data.newScore.toFixed(2)}%`;
-            input.disabled = true;
-            // Refresh the answers view to update status and correct count
-            setTimeout(() => viewUserAnswers(), 500);
-        } else {
-            msg.innerText = `Error: ${data.error}`;
-        }
-    } catch (err) { 
+        msg.innerHTML = data.success ? 
+            `<div class="alert alert-success">Question added to "${test}" (ID: ${data.questionId})</div>` : 
+            `<div class="alert alert-danger">Error: ${data.error}</div>`;
+    } catch(err){ 
         msg.innerText = `Network error: ${err.message}`; 
     }
-}
-
-// --- VIEW PENDING MANUAL GRADING ---
-async function viewPendingManual() {
-    const testName = document.getElementById('pendingTestName').value.trim();
-    const container = document.getElementById('pendingTestContainer');
-    container.innerHTML = "Loading...";
-
-    if (!testName) { 
-        container.innerText = "Test Name required"; 
-        return; 
-    }
-
-    try {
-        const res = await fetch(`${API_BASE}/pendingManualGrading/${encodeURIComponent(testName)}`, { headers: authHeaders() });
-        const data = await res.json();
-
-        if (!data.success) { 
-            container.innerText = `Error: ${data.error}`; 
-            return; 
-        }
-        if (!data.pendingQuestions || data.pendingQuestions.length === 0) { 
-            container.innerText = "No pending questions for this test."; 
-            return; 
-        }
-
-        let html = '<ul class="list-group">';
-        data.pendingQuestions.forEach((q, index) => {
-            html += `<li class="list-group-item mb-2">
-                <strong>Username:</strong> ${q.username} <br>
-                <strong>Question ID:</strong> ${q.questionId} <br>
-                <strong>Question:</strong> ${q.questionText} <br>
-                <strong>Submitted Answer:</strong> ${q.submittedAnswer || "(no answer)"} <br>
-                <div class="mt-2">
-                    <input type="number" step="0.01" min="0" max="1" id="manualScore_${index}" class="form-control mb-1" placeholder="Score">
-                    <button class="btn btn-sm btn-warning" onclick="submitManualScore('${q.username}','${testName}',${q.questionId},${index})">Submit Score</button>
-                    <span id="msg_${index}" class="ms-2"></span>
-                </div>
-            </li>`;
-        });
-        html += '</ul>';
-        container.innerHTML = html;
-    } catch (err) {
-        container.innerText = `Network error: ${err.message}`;
-    }
-}
-
-// --- SUBMIT MANUAL SCORE ---
-async function submitManualScore(username,testName,questionId,index){
-    const scoreInput=document.getElementById(`manualScore_${index}`);
-    const msgSpan=document.getElementById(`msg_${index}`);
-    const score=parseFloat(scoreInput.value);
-
-    if(isNaN(score)||score<0){ msgSpan.innerText="Enter a valid score"; return; }
-
-    msgSpan.innerText="Submitting...";
-
-    try{
-        const res = await fetch(`${API_BASE}/gradeQuestion`,{
-            method:'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ username, testName, questionId, scoreDelta:score })
-        });
-        const data = await res.json();
-        if(data.success){ 
-            msgSpan.innerText=`Score submitted! New total: ${data.newScore.toFixed(2)}%`;
-            scoreInput.disabled=true;
-        } else { msgSpan.innerText=`Error: ${data.error}`; }
-    } catch(err){ msgSpan.innerText=`Network error: ${err.message}`; }
-}
-
-// --- VIEW RANKINGS ---
-async function viewRankings() {
-    const testName=document.getElementById('rankingTestName').value.trim();
-    const container=document.getElementById('rankingContainer');
-
-    if(!testName){ container.innerText="Test Name required"; return; }
-    container.innerText="Loading...";
-
-    try{
-        const res = await fetch(`${API_BASE}/rankings/${encodeURIComponent(testName)}`, { headers: authHeaders() });
-        const data = await res.json();
-
-        if(!data.success){ container.innerText=`Error: ${data.error}`; return; }
-        if(!data.rankings || data.rankings.length===0){ container.innerText="No submissions yet."; return; }
-
-        let html='<table class="table table-striped"><thead><tr><th>Rank</th><th>Username</th><th>Score (%)</th><th>Out-of-browser Time (s)</th></tr></thead><tbody>';
-        data.rankings.forEach(r=>{
-            html+=`<tr>
-                <td>${r.rank}</td>
-                <td>${r.username}</td>
-                <td>${r.score.toFixed(2)}</td>
-                <td>${Math.floor(r.outOfBrowserTimeMs/1000)}</td>
-            </tr>`;
-        });
-        html+='</tbody></table>';
-        container.innerHTML=html;
-    } catch(err){ container.innerText=`Network error: ${err.message}`; }
-}
-
-// --- VIEW QUESTIONS FOR A TEST ---
-async function viewQuestions() {
-    const testName = document.getElementById('manageTestName').value.trim();
-    const container = document.getElementById('questionListContainer');
-    container.innerHTML = "Loading...";
-    if(!testName){ container.innerText="Test Name required"; return; }
-
-    try{
-        const res = await fetch(`${API_BASE}/questions/${encodeURIComponent(testName)}`, { headers: authHeaders() });
-        const data = await res.json();
-        if(!data.success){ container.innerText=`Error: ${data.error}`; return; }
-        if(!data.questions || data.questions.length===0){ container.innerText="No questions found."; return; }
-
-        let html='<table class="table table-striped table-dark"><thead><tr><th>ID</th><th>Question</th><th>Answer</th><th>Type</th><th>Options</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
-        data.questions.forEach(q=>{
-            const optionsStr = q.options ? q.options.join(", ") : "";
-            const status = q.is_active ? "Active" : "Disabled";
-            html+=`<tr>
-                <td>${q.id}</td>
-                <td>${q.question_text}</td>
-                <td>${q.question_answer || "(manual)"}</td>
-                <td>${q.type}</td>
-                <td>${optionsStr}</td>
-                <td>${status}</td>
-                <td>
-                    ${q.is_active ? `<button class="btn btn-sm btn-warning" onclick="disableQuestion(${q.id})">Disable</button>` :
-                                    `<button class="btn btn-sm btn-success" onclick="enableQuestion(${q.id})">Enable</button>`}
-                </td>
-            </tr>`;
-        });
-        html+='</tbody></table>';
-        container.innerHTML=html;
-    } catch(err){ container.innerText=`Network error: ${err.message}`; }
-}
-
-// --- DISABLE QUESTION ---
-async function disableQuestion(id){
-    if(!confirm("Are you sure you want to disable this question?")) return;
-    try{
-        const res = await fetch(`${API_BASE}/disableQuestion/${id}`, {
-            method: 'PATCH',
-            headers: authHeaders()
-        });
-        const data = await res.json();
-        if(data.success){
-            alert(data.message);
-            viewQuestions(); // refresh list
-        } else { alert(`Error: ${data.error}`); }
-    } catch(err){ alert(`Network error: ${err.message}`); }
-}
-
-// --- ENABLE QUESTION ---
-async function enableQuestion(id){
-    if(!confirm("Are you sure you want to enable this question?")) return;
-    try{
-        const res = await fetch(`${API_BASE}/enableQuestion/${id}`, {
-            method: 'PATCH',
-            headers: authHeaders()
-        });
-        const data = await res.json();
-        if(data.success){
-            alert(data.message);
-            viewQuestions(); // refresh list
-        } else { alert(`Error: ${data.error}`); }
-    } catch(err){ alert(`Network error: ${err.message}`); }
 }
 
 async function loadQuestion() {
     const id = document.getElementById('editQuestionId').value.trim();
     const msg = document.getElementById('editQuestionMessage');
-    if(!id) { msg.innerText = "Enter a Question ID"; return; }
+    if(!id) { 
+        msg.innerText = "Enter a Question ID"; 
+        return; 
+    }
 
     try {
         const res = await fetch(`${API_BASE}/allQuestions`, { headers: authHeaders() });
         const data = await res.json();
 
-        if(!data.success) { msg.innerText = `Error: ${data.error}`; return; }
+        if(!data.success) { 
+            msg.innerText = `Error: ${data.error}`; 
+            return; 
+        }
 
         const q = data.questions.find(q => q.id == id);
-        if(!q) { msg.innerText = "Question not found"; return; }
+        if(!q) { 
+            msg.innerText = "Question not found"; 
+            return; 
+        }
 
-        // Populate edit form
         document.getElementById('editQuestionTest').value = q.test || '';
         document.getElementById('editQuestionText').value = q.question_text;
         document.getElementById('editQuestionAnswer').value = q.question_answer || '';
         document.getElementById('editQuestionMedia').value = q.multimedia_content || '';
         document.getElementById('editQuestionType').value = q.type;
+        document.getElementById('editQuestionPoints').value = q.points || 1;
         document.getElementById('editQuestionOptions').value = q.options ? q.options.join(', ') : '';
-        msg.innerText = '';
+        msg.innerHTML = '<div class="alert alert-info">Question loaded successfully</div>';
     } catch(err) {
         msg.innerText = `Network error: ${err.message}`;
     }
-}
-
-async function loadUsers() {
-  const container = document.getElementById('usersContainer');
-  container.innerHTML = "Loading...";
-
-  try {
-    const res = await fetch(`${API_BASE}/allUsers`, { headers: authHeaders() });
-    const data = await res.json();
-
-    if(!data.success){ container.innerText = `Error: ${data.error}`; return; }
-    if(!data.users || data.users.length===0){ container.innerText = "No users found."; return; }
-
-    let html='<table class="table table-striped table-dark"><thead><tr><th>ID</th><th>Username</th><th>Test</th><th>Actions</th></tr></thead><tbody>';
-    data.users.forEach(user=>{
-      html+=`<tr>
-        <td>${user.id}</td>
-        <td><span class="username-text">${user.username}</span>
-            <input class="form-control edit-input username-input" style="display:none"></td>
-        <td><span class="test-text">${user.test || ""}</span>
-            <input class="form-control edit-input test-input" style="display:none"></td>
-        <td>
-            <button class="btn btn-sm btn-warning" onclick="editUser(${user.id}, this)">Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">Delete</button>
-            <button class="btn btn-sm btn-success" style="display:none" onclick="saveUser(${user.id}, this)">Save</button>
-            <button class="btn btn-sm btn-secondary" style="display:none" onclick="cancelEdit(this)">Cancel</button>
-        </td>
-      </tr>`;
-    });
-    html+='</tbody></table>';
-    container.innerHTML = html;
-  } catch(err){ container.innerText=`Network error: ${err.message}`; }
-}
-
-// --- EDIT USER ROW ---
-function editUser(id, btn) {
-  const tr = btn.closest('tr');
-  tr.querySelector('.username-text').style.display = 'none';
-  tr.querySelector('.test-text').style.display = 'none';
-  const usernameInput = tr.querySelector('.username-input');
-  usernameInput.value = tr.querySelector('.username-text').innerText;
-  usernameInput.style.display = 'inline';
-  const testInput = tr.querySelector('.test-input');
-  testInput.value = tr.querySelector('.test-text').innerText;
-  testInput.style.display = 'inline';
-
-  btn.style.display = 'none';
-  const [deleteBtn, saveBtn, cancelBtn] = tr.querySelectorAll('button:nth-child(n+2)');
-  saveBtn.style.display = 'inline';
-  cancelBtn.style.display = 'inline';
-  deleteBtn.style.display = 'inline';
-}
-
-// --- CANCEL EDIT ---
-function cancelEdit(btn) {
-  const tr = btn.closest('tr');
-  tr.querySelector('.username-text').style.display = 'inline';
-  tr.querySelector('.test-text').style.display = 'inline';
-  tr.querySelector('.username-input').style.display = 'none';
-  tr.querySelector('.test-input').style.display = 'none';
-  tr.querySelector('button:nth-child(1)').style.display = 'inline'; // Edit
-  tr.querySelector('button:nth-child(3)').style.display = 'none'; // Save
-  tr.querySelector('button:nth-child(4)').style.display = 'none'; // Cancel
-}
-
-// --- SAVE USER ---
-async function saveUser(id, btn) {
-  const tr = btn.closest('tr');
-  const username = tr.querySelector('.username-input').value.trim();
-  const test = tr.querySelector('.test-input').value.trim();
-
-  try {
-    const res = await fetch(`${API_BASE}/editUser/${id}`, {
-      method:'PUT',
-      headers: authHeaders(),
-      body: JSON.stringify({ username, test })
-    });
-    const data = await res.json();
-    if(!data.success){ alert(`Error: ${data.error}`); return; }
-    loadUsers();
-  } catch(err){ alert(`Network error: ${err.message}`); }
-}
-
-// --- DELETE USER ---
-async function deleteUser(id) {
-  if(!confirm("Are you sure you want to delete this user?")) return;
-
-  try{
-    const res = await fetch(`${API_BASE}/deleteUser/${id}`, {
-      method:'DELETE',
-      headers: authHeaders()
-    });
-    const data = await res.json();
-    if(!data.success){ alert(`Error: ${data.error}`); return; }
-    loadUsers();
-  } catch(err){ alert(`Network error: ${err.message}`); }
-}
-
-async function loadUserScores() {
-    const username = document.getElementById('editScoreUsername').value.trim();
-    const testName = document.getElementById('editScoreTestName').value.trim();
-    const container = document.getElementById('editScoresContainer');
-    container.innerHTML = "Loading...";
-
-    if(!username || !testName) { 
-        container.innerText = "Username and Test Name are required"; 
-        return; 
-    }
-
-    try {
-        const res = await fetch(`${API_BASE}/viewUserAnswers/${encodeURIComponent(username)}/${encodeURIComponent(testName)}`, { headers: authHeaders() });
-        const data = await res.json();
-
-        if(!data.success || !data.answers){ container.innerText = `Error: ${data.error || "No data found"}`; return; }
-
-        let html = '<ul class="list-group">';
-        data.answers.forEach((a, index) => {
-            const userAnswer = a.submittedAnswer || "(no answer)";
-            // Use correct answer if available, otherwise show manual score if graded
-            let correctAnswer = a.correctAnswer ?? (a.manualScore !== null && a.manualScore !== undefined ? `(Manually graded: ${a.manualScore})` : "");
-
-            // Determine status
-            let statusText = "";
-            if (a.manualScore !== null && a.manualScore !== undefined) {
-                statusText = `Manually graded: ${a.manualScore}`;
-                correctCount += a.manualScore;
-            } else if (a.isCorrect === true) {
-                statusText = "Correct";
-                correctCount += 1;
-            } else if (a.isCorrect === false) {
-                statusText = "Incorrect";
-            } else {
-                statusText = "Pending Manual Grading";
-            }
-
-            const scoreValue = a.manualScore !== null && a.manualScore !== undefined ? a.manualScore : (a.isCorrect ? 1 : 0);
-
-            html += `<tr>
-                        <td>${a.questionId}</td>
-                        <td>${a.questionText}</td>
-                        <td>${userAnswer}</td>
-                        <td>${correctAnswer}</td>
-                        <td>${statusText}</td>
-                        <td>
-                            <input type="number" step="0.01" min="0" max="1" id="scoreInput_${index}" value="${scoreValue}" class="form-control w-50 d-inline-block">
-                            <button class="btn btn-sm btn-success ms-2" onclick="submitManualScoreDirect('${username}','${testName}',${a.questionId},${index})">Save</button>
-                            <span id="scoreMsg_${index}" class="ms-2 text-success"></span>
-                        </td>
-                    </tr>`;
-        });
-        html += '</ul>';
-        container.innerHTML = html;
-
-    } catch(err){ container.innerText = `Network error: ${err.message}`; }
-}
-
-async function submitEditedScore(username, testName, questionId, index) {
-    const input = document.getElementById(`scoreInput_${index}`);
-    const msg = document.getElementById(`scoreMsg_${index}`);
-    const score = parseFloat(input.value);
-
-    if(isNaN(score) || score < 0 || score > 1){ msg.innerText = "Enter a valid score"; return; }
-
-    msg.innerText = "Saving...";
-    try {
-        const res = await fetch(`${API_BASE}/gradeQuestion`, {
-            method: 'POST',
-            headers: authHeaders(),
-            body: JSON.stringify({ username, testName, questionId, scoreDelta: score })
-        });
-        const data = await res.json();
-        if(data.success){
-            msg.innerText = `Saved! New total: ${data.newScore.toFixed(2)}%`;
-            input.disabled = true;
-        } else {
-            msg.innerText = `Error: ${data.error}`;
-        }
-    } catch(err){ msg.innerText = `Network error: ${err.message}`; }
 }
 
 async function submitEditQuestion() {
@@ -930,22 +601,471 @@ async function submitEditQuestion() {
         });
         const data = await res.json();
         if (data.success) {
-            msg.innerText = `Question updated successfully!`;
-            // Optionally refresh the question list or view
-            viewQuestions();
+            msg.innerHTML = `<div class="alert alert-success">Question updated successfully!</div>`;
         } else {
-            msg.innerText = `Error: ${data.error}`;
+            msg.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
         }
     } catch (err) {
         msg.innerText = `Network error: ${err.message}`;
     }
 }
 
-function toggleEditOptions() {
-    document.getElementById('editQuestionOptions').disabled = 
-        document.getElementById('editQuestionType').value !== 'mcq';
+async function createGrader() {
+    const username = document.getElementById('graderUsername').value.trim();
+    const password = document.getElementById('graderPassword').value;
+    const msg = document.getElementById('graderMessage');
+
+    if (!username || !password) {
+        msg.innerText = "Username and password required";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/createGrader`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            msg.innerHTML = `<div class="alert alert-success">Grader created: ${username}</div>`;
+            document.getElementById('graderUsername').value = '';
+            document.getElementById('graderPassword').value = '';
+            loadGraders();
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+    } catch (err) {
+        msg.innerText = `Network error: ${err.message}`;
+    }
 }
 
+async function loadGraders() {
+    const container = document.getElementById('gradersContainer');
+    container.innerHTML = "Loading...";
+
+    try {
+        const res = await fetch(`${API_BASE}/allGraders`, { headers: authHeaders() });
+        const data = await res.json();
+
+        if (!data.success) {
+            container.innerText = `Error: ${data.error}`;
+            return;
+        }
+
+        if (!data.graders || data.graders.length === 0) {
+            container.innerText = "No graders found.";
+            return;
+        }
+
+        let html = '<table class="table table-striped table-dark"><thead><tr><th>ID</th><th>Username</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+        data.graders.forEach(g => {
+            html += `<tr>
+                <td>${g.id}</td>
+                <td>${g.username}</td>
+                <td>${new Date(g.createdAt).toLocaleString()}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteGrader(${g.id})">Delete</button></td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerText = `Network error: ${err.message}`;
+    }
+}
+
+async function deleteGrader(id) {
+    if (!confirm("Delete this grader?")) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/deleteGrader/${id}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert("Grader deleted");
+            loadGraders();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
+
+async function assignGrader() {
+    const graderUsername = document.getElementById('assignGraderUsername').value.trim();
+    const username = document.getElementById('assignGraderStudentUsername').value.trim();
+    const testName = document.getElementById('assignGraderTestName').value.trim();
+    const msg = document.getElementById('assignGraderMessage');
+
+    if (!graderUsername || !username || !testName) {
+        msg.innerText = "All fields required";
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_BASE}/assignGrader`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ graderUsername, username, testName })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+        } else {
+            msg.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+    } catch (err) {
+        msg.innerText = `Network error: ${err.message}`;
+    }
+}
+
+async function viewUserAnswers() {
+    const username = document.getElementById('viewUsername').value.trim();
+    const testName = document.getElementById('viewTestName').value.trim();
+    const container = document.getElementById('answersContainer');
+    const scoreContainer = document.getElementById('finalScore');
+
+    container.innerHTML = scoreContainer.innerHTML = "Loading...";
+
+    if (!username || !testName) {
+        container.innerText = "Username and Test Name required";
+        scoreContainer.innerText = "";
+        return;
+    }
+
+    try {
+        const url = `${API_BASE}/viewUserAnswers/${encodeURIComponent(username)}/${encodeURIComponent(testName)}`;
+        const res = await fetch(url, { headers: authHeaders() });
+        const data = await res.json();
+
+        if (!data.success) {
+            container.innerText = `Error: ${data.error}`;
+            scoreContainer.innerText = "";
+            return;
+        }
+
+        if (!data.answers || data.answers.length === 0) {
+            container.innerText = "No submissions found";
+            scoreContainer.innerText = "";
+            return;
+        }
+
+        let totalPointsEarned = 0;
+        let totalPointsPossible = 0;
+
+        let html = `<table class="table table-striped table-dark">
+                    <thead><tr>
+                        <th>ID</th>
+                        <th>Question</th>
+                        <th>User Answer</th>
+                        <th>Correct Answer</th>
+                        <th>Status</th>
+                        <th>Points (Max)</th>
+                        <th>Manual Score</th>
+                    </tr></thead><tbody>`;
+
+        data.answers.forEach((a, index) => {
+            const userAnswer = a.submittedAnswer || "No Answer";
+            const correctAnswer = a.correctAnswer || "Manually Graded";
+            const maxPoints = a.maxPoints || 1;
+            totalPointsPossible += maxPoints;
+            
+            let statusText = "";
+            let pointsEarned = 0;
+
+            if (a.manualScore !== null && a.manualScore !== undefined) {
+                statusText = "Manually graded";
+                pointsEarned = a.manualScore;
+                totalPointsEarned += pointsEarned;
+            } else if (a.isCorrect === true) {
+                statusText = "Correct";
+                pointsEarned = maxPoints;
+                totalPointsEarned += pointsEarned;
+            } else if (a.isCorrect === false) {
+                statusText = "Incorrect";
+                pointsEarned = 0;
+            } else {
+                statusText = "Pending Manual Grading";
+                pointsEarned = 0;
+            }
+
+            const scoreValue = a.manualScore !== null && a.manualScore !== undefined ? a.manualScore : (a.isCorrect ? maxPoints : 0);
+
+            html += `<tr>
+                        <td>${a.questionId}</td>
+                        <td>${a.questionText}</td>
+                        <td>${userAnswer}</td>
+                        <td>${correctAnswer}</td>
+                        <td>${statusText}</td>
+                        <td>${pointsEarned.toFixed(2)} / ${maxPoints}</td>
+                        <td>
+                            <input type="number" step="0.01" min="0" max="${maxPoints}" id="scoreInput_${index}" value="${scoreValue}" class="form-control w-50 d-inline-block">
+                            <button class="btn btn-sm btn-success ms-2" onclick="submitManualScore('${username}','${testName}',${a.questionId},${index})">Save</button>
+                            <span id="scoreMsg_${index}" class="ms-2 text-success"></span>
+                        </td>
+                    </tr>`;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        // Show final score
+        const percentage = (totalPointsEarned / totalPointsPossible) * 100;
+        scoreContainer.innerHTML = `<strong>Final Score: ${totalPointsEarned.toFixed(2)} / ${totalPointsPossible} (${percentage.toFixed(1)}%)</strong>`;
+    } catch (err) {
+        container.innerText = `Network error: ${err.message}`;
+        scoreContainer.innerText = "";
+    }
+}
+
+async function submitManualScore(username, testName, questionId, index) {
+    const scoreInput = document.getElementById(`scoreInput_${index}`);
+    const msgSpan = document.getElementById(`scoreMsg_${index}`);
+    const score = parseFloat(scoreInput.value);
+
+    try {
+        const res = await fetch(`${API_BASE}/gradeQuestion`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                username,
+                testName,
+                questionId,
+                scoreDelta: score
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            msgSpan.innerText = "✓ Saved";
+            setTimeout(() => msgSpan.innerText = "", 2000);
+        } else {
+            msgSpan.innerText = `Error: ${data.error}`;
+        }
+    } catch (err) {
+        msgSpan.innerText = `Network error: ${err.message}`;
+    }
+}
+
+async function viewQuestions() {
+    const testName = document.getElementById('manageTestName').value.trim();
+    const container = document.getElementById('questionListContainer');
+
+    if (!testName) {
+        container.innerText = "Enter a test name";
+        return;
+    }
+
+    container.innerHTML = "Loading...";
+    try {
+        const res = await fetch(`${API_BASE}/questions/${encodeURIComponent(testName)}`, { 
+            headers: authHeaders() 
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            container.innerText = `Error: ${data.error}`;
+            return;
+        }
+
+        if (!data.questions || data.questions.length === 0) {
+            container.innerText = "No questions found for this test.";
+            return;
+        }
+
+        let html = `<table class="table table-striped table-dark">
+            <thead><tr>
+                <th>ID</th>
+                <th>Question</th>
+                <th>Type</th>
+                <th>Points</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr></thead><tbody>`;
+
+        data.questions.forEach(q => {
+            html += `<tr>
+                <td>${q.id}</td>
+                <td>${q.question_text}</td>
+                <td>${q.type}</td>
+                <td>${q.points || 1}</td>
+                <td>${q.is_active ? 'Active' : 'Disabled'}</td>
+                <td>
+                    ${q.is_active ? 
+                        `<button class="btn btn-sm btn-warning" onclick="disableQuestion(${q.id})">Disable</button>` :
+                        `<button class="btn btn-sm btn-success" onclick="enableQuestion(${q.id})">Enable</button>`
+                    }
+                </td>
+            </tr>`;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerText = `Network error: ${err.message}`;
+    }
+}
+
+async function disableQuestion(id) {
+    if (!confirm("Disable this question?")) return;
+    try {
+        const res = await fetch(`${API_BASE}/disableQuestion/${id}`, {
+            method: 'PATCH',
+            headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+            viewQuestions();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
+
+async function enableQuestion(id) {
+    if (!confirm("Enable this question?")) return;
+    try {
+        const res = await fetch(`${API_BASE}/enableQuestion/${id}`, {
+            method: 'PATCH',
+            headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+            viewQuestions();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
+
+async function loadUsers() {
+    const container = document.getElementById('usersContainer');
+    container.innerHTML = "Loading...";
+
+    try {
+        const res = await fetch(`${API_BASE}/allUsers`, { headers: authHeaders() });
+        const data = await res.json();
+
+        if (!data.success) {
+            container.innerText = `Error: ${data.error}`;
+            return;
+        }
+
+        if (!data.users || data.users.length === 0) {
+            container.innerText = "No users found.";
+            return;
+        }
+
+        let html = `
+            <table class="table table-striped table-dark">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username</th>
+                        <th>Password</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+                
+        data.users.forEach(u => {
+            html += `
+                <tr>
+                    <td>${u.id}</td>
+                    <td><input type="text" class="form-control" id="user_${u.id}" value="${u.username}"></td>
+                    <td>
+                        ${u.lastPasswordReset ? 
+                            `<code>${u.lastPasswordReset}</code>` : 
+                            '<span class="text-muted">Hidden</span>'}
+                        <button class="btn btn-sm btn-warning ms-2" onclick="resetUserPassword(${u.id})">Reset</button>
+                    </td>
+                    <td>${new Date(u.createdAt).toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-2" onclick="editUser(${u.id})">Save</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+                    </td>
+                </tr>`;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (err) {
+        container.innerText = `Network error: ${err.message}`;
+    }
+}
+
+async function resetUserPassword(id) {
+    if (!confirm("Reset this user's password?")) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/resetUserPassword/${id}`, {
+            method: 'POST',
+            headers: authHeaders()
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert(`Password reset successful. New password: ${data.newPassword}`);
+            loadUsers(); // Refresh the list
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
+
+async function editUser(id) {
+    const newUsername = document.getElementById(`user_${id}`).value.trim();
+    if (!newUsername) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/editUser/${id}`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ username: newUsername })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert("User updated");
+            loadUsers();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm("Delete this user?")) return;
+
+    try {
+        const res = await fetch(`${API_BASE}/deleteUser/${id}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert("User deleted");
+            loadUsers();
+        } else {
+            alert(`Error: ${data.error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    }
+}
 </script>
 </body>
 </html>
